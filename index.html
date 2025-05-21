@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simulasi Cuaca</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #d0f0fd;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #888;
+      text-align: center;
+    }
+    input, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+      margin: 0.5rem 0;
+      width: 80%;
+      border-radius: 5px;
+      border: 1px solid #666;
+    }
+    button {
+      background-color: #0288d1;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #015f8b;
+    }
+    pre {
+      text-align: left;
+      white-space: pre-wrap;
+      background: #e6f4fb;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 1rem;
+    }
+    #chartContainer {
+      margin-top: 1rem;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simulasi Cuaca</h1>
+  <input type="text" id="cityInput" placeholder="Masukkan nama kota" />
+  <button onclick="getWeather()">Cek Cuaca</button>
+
+  <pre id="result"></pre>
+
+  <div id="chartContainer">
+    <canvas id="forecastChart" width="350" height="200"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    let chart;
+
+    async function getWeather() {
+      const city = document.getElementById('cityInput').value.trim();
+      if (!city) {
+        alert('Masukkan nama kota terlebih dahulu');
+        return;
+      }
+      const url = `https://wttr.in/${encodeURIComponent(city)}?format=j1`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Gagal mengambil data cuaca');
+        const data = await res.json();
+
+        // Cuaca saat ini
+        const current = data.current_condition[0];
+        const output = `
+Lokasi: ${city}
+Cuaca: ${current.weatherDesc[0].value}
+Suhu: ${current.temp_C} °C
+Kelembapan: ${current.humidity} %
+Kecepatan Angin: ${current.windspeedKmph} km/jam
+        `;
+        document.getElementById('result').textContent = output;
+
+        // Data prakiraan 3 hari (besok dan dua hari berikutnya)
+        const forecast = data.weather.slice(0, 3);
+        const labels = forecast.map(day => {
+          const d = new Date(day.date);
+          return d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+        });
+        const tempsMax = forecast.map(day => Number(day.maxtempC));
+        const tempsMin = forecast.map(day => Number(day.mintempC));
+
+        // Buat grafik suhu
+        const ctx = document.getElementById('forecastChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Suhu Maksimum (°C)',
+                data: tempsMax,
+                borderColor: 'red',
+                backgroundColor: 'rgba(255,0,0,0.2)',
+                fill: true,
+                tension: 0.3
+              },
+              {
+                label: 'Suhu Minimum (°C)',
+                data: tempsMin,
+                borderColor: 'blue',
+                backgroundColor: 'rgba(0,0,255,0.2)',
+                fill: true,
+                tension: 0.3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' }
+            },
+            scales: {
+              y: { beginAtZero: false }
+            }
+          }
+        });
+
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+  </script>
+</body>
+</html>
